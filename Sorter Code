@@ -1,0 +1,165 @@
+// ==UserScript==
+// @name         Sort Reddit Usernames from Comments
+// @namespace    http://tampermonkey.net/
+// @version      1.6
+// @description  Find and sort Reddit usernames from comments when a button is clicked
+// @author       Your Name
+// @match        https://www.reddit.com/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    const myUsername = '-Hi_how_r_u_xd-'; // Replace with your Reddit username
+
+    // Function to load usernames from localStorage
+    function loadUsernames() {
+        const storedUsernames = localStorage.getItem('redditUsernames');
+        return storedUsernames ? JSON.parse(storedUsernames) : [];
+    }
+
+    // Function to save usernames to localStorage
+    function saveUsernames(usernames) {
+        localStorage.setItem('redditUsernames', JSON.stringify(usernames));
+    }
+
+    // Function to find usernames in comments
+    function findUsernames() {
+        // Get all elements that contain usernames in comments
+        const usernameElements = document.querySelectorAll('a[href^="/user/"]');
+
+        // Load existing usernames from localStorage
+        const usernames = loadUsernames();
+
+        // Extract usernames from these elements and add to list
+        usernameElements.forEach(element => {
+            const username = "u/" + element.href.split('/user/')[1].replace('/', '');
+            if (!usernames.includes(username) && !username.includes(myUsername)) {
+                usernames.push(username);
+            }
+        });
+
+        // Save updated list of usernames to localStorage
+        saveUsernames(usernames);
+
+        // Display usernames on the page
+        displayUsernames(usernames);
+    }
+
+    // Function to display usernames on the page
+    function displayUsernames(usernames) {
+        // Remove existing container if it exists
+        const existingContainer = document.getElementById('username-container');
+        if (existingContainer) {
+            existingContainer.remove();
+        }
+
+        // Create a container for the usernames
+        const container = document.createElement('div');
+        container.id = 'username-container';
+        container.style.position = 'fixed';
+        container.style.top = '10px';
+        container.style.right = '10px';
+        container.style.backgroundColor = 'white';
+        container.style.border = '1px solid black';
+        container.style.padding = '10px';
+        container.style.maxHeight = '90vh';
+        container.style.overflowY = 'scroll';
+        container.style.zIndex = '9999';
+        container.style.color = 'black';
+        container.style.display = 'none'; // Initially hidden
+
+        // Add a title to the container
+        const title = document.createElement('h3');
+        title.textContent = 'Usernames';
+        container.appendChild(title);
+
+        // Add buttons to the container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.marginBottom = '10px';
+
+        const addButton = document.createElement('button');
+        addButton.textContent = 'Add Usernames';
+        addButton.addEventListener('click', findUsernames);
+        buttonContainer.appendChild(addButton);
+
+        const sortButton = document.createElement('button');
+        sortButton.textContent = 'Sort Alphabetically';
+        sortButton.addEventListener('click', () => {
+            usernames.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+            saveUsernames(usernames);
+            displayUsernames(usernames);
+        });
+        buttonContainer.appendChild(sortButton);
+
+        const resetButton = document.createElement('button');
+        resetButton.textContent = 'Hold to Reset';
+        resetButton.addEventListener('mousedown', () => {
+            resetButton.holdStart = Date.now();
+        });
+        resetButton.addEventListener('mouseup', () => {
+            const holdDuration = Date.now() - resetButton.holdStart;
+            if (holdDuration >= 3000) {
+                localStorage.removeItem('redditUsernames');
+                displayUsernames([]);
+            }
+        });
+        resetButton.addEventListener('mouseleave', () => {
+            resetButton.holdStart = null;
+        });
+        buttonContainer.appendChild(resetButton);
+
+        const copyButton = document.createElement('button');
+        copyButton.textContent = 'Copy Usernames';
+        copyButton.addEventListener('click', () => {
+            const usernameText = usernames.join('\n');
+            navigator.clipboard.writeText(usernameText).then(() => {
+                alert('Usernames copied to clipboard!');
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+            });
+        });
+        buttonContainer.appendChild(copyButton);
+
+        container.appendChild(buttonContainer);
+
+        // Add usernames to the container
+        const usernameList = document.createElement('div');
+        usernameList.id = 'username-list';
+        usernames.forEach(username => {
+            const usernameElement = document.createElement('div');
+            usernameElement.textContent = username;
+            usernameElement.style.color = 'black';
+            usernameList.appendChild(usernameElement);
+        });
+        container.appendChild(usernameList);
+
+        // Add the container to the body
+        document.body.appendChild(container);
+
+        // Add button to toggle the display of the container
+        const toggleButton = document.createElement('button');
+        toggleButton.textContent = 'Toggle Usernames';
+        toggleButton.style.position = 'fixed';
+        toggleButton.style.top = '10px';
+        toggleButton.style.right = '10px';
+        toggleButton.style.zIndex = '9999';
+        toggleButton.addEventListener('click', () => {
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        });
+
+        // Add the toggle button to the body
+        document.body.appendChild(toggleButton);
+    }
+
+    // Initial display of usernames when the page loads
+    window.addEventListener('load', () => {
+        const usernames = loadUsernames();
+        displayUsernames(usernames);
+    });
+})();
